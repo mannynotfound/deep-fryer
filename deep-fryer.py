@@ -15,9 +15,12 @@ if not os.path.exists(TMP_FOLDER):
 def create_base_args():
     return [
         '-y', # overwrite existing
-        '-c:a', 'copy', # copy input settings
         '-vb', '2M', # shitty bit rate to create compression effect
-    ]
+    ] + create_audio_args()
+
+
+def create_audio_args():
+    return ['-af', 'volume=10dB']
 
 
 def create_filter_args():
