@@ -1,15 +1,15 @@
 import os
-import re
-import sys
 import random
 import ffmpy
 import argparse
-from utils import line_break, make_random_value, get_total_seconds, get_dimensions
 from collections import OrderedDict
 from shutil import copyfile, rmtree
 
+from utils import line_break, make_random_value, get_total_seconds, get_dimensions
 
 TMP_FOLDER = './tmp'
+if not os.path.exists(TMP_FOLDER):
+    os.makedirs(TMP_FOLDER)
 
 
 def create_base_args():
@@ -31,9 +31,8 @@ def create_filter_args():
 
     eq_str = 'eq=saturation={}:contrast={}'.format(saturation, contrast)
     noise_str = 'noise=alls={}:allf=t'.format(noise)
-    filter_str = ', '.join([eq_str, noise_str])
 
-    return ['-vf', filter_str]
+    return ['-vf', ','.join([eq_str, noise_str])]
 
 
 def get_random_emoji():
@@ -41,44 +40,38 @@ def get_random_emoji():
     Return a random emoji file from './emoji'. To avoid errors when using the
     same file more than once, each file is given a random name and copied into './tmp'
     """
-    if not os.path.exists(TMP_FOLDER):
-        os.makedirs(TMP_FOLDER)
+    emoji_choices = filter(lambda x: not x.startswith('.'), os.listdir('./emoji'))
+    rand_choice = random.choice(emoji_choices)
+    new_name = str(random.randint(0, 99999999)) + '.png'
+    new_dest = '{}/{}'.format(TMP_FOLDER, new_name)
+    copyfile('./emoji/{}'.format(rand_choice), new_dest)
 
-    rand_emoji = None
-    while rand_emoji is None:
-        rand_choice = random.choice(os.listdir('./emoji'))
-        if 'DS_Store' not in rand_choice:
-            new_name = str(random.randint(0, 99999999)) + '.png'
-            new_dest = '{}/{}'.format(TMP_FOLDER, new_name)
-            copyfile('./emoji/{}'.format(rand_choice), new_dest)
-            rand_emoji = new_dest
-
-    return rand_emoji
+    return new_dest
 
 
 def get_random_emojis(amt):
     """
     Create emoji inputs, returning an OrderedDict where each key is the emoji
-    comp name and the value includes size and filter str. Filter string
-    example: [4:v]scale=30:30,rotate=12*PI/180:c=none[emoji_4]
+    comp name and the value includes size and filter str. eg:
+    [emoji_4]: {
+        filter_str: [4:v]scale=30:30,rotate=12*PI/180:c=none[emoji_4],
+        size: 30,
+    }
     """
     emojis = OrderedDict({})
     for idx in xrange(1, amt + 1):
         size = random.randint(50, 200)
         rotation = random.randint(-180, 180)
 
-        emoji_name = 'emoji_{}'.format(idx)
-        filter_str = '[{}:v]scale={}:{},rotate={}*PI/180:c=none[{}]'.format(
-            idx, size, size, rotation, emoji_name
-        )
+        input_comp = '{}:v'.format(idx)
+        output_comp = 'emoji_{}'.format(idx)
+        transform = 'scale={}:{},rotate={}*PI/180:c=none'.format(size, size, rotation)
+        filter_str = '[{}]{}[{}]'.format(input_comp, transform, output_comp)
 
-        emojis[emoji_name] = {
-            'size': size,
-            'filter_str': filter_str,
-        }
-
+        emojis[output_comp] = {'size': size, 'filter_str': filter_str}
 
     return emojis
+
 
 def create_emoji_filters(input_file):
     comp_name = '0:v'
@@ -105,18 +98,14 @@ def create_emoji_filters(input_file):
         end = start + dur
 
         new_comp = 'comp_{}'.format(idx)
-        emoji_str = ';'.join([
-            filter_str,
-            "[{}][{}]overlay={}:{}:enable='between(t, {}, {})'".format(
-                comp_name, emoji, pos_x, pos_y, start, end
-            ),
-        ])
+        overlay = "overlay={}:{}:enable='between(t, {}, {})'".format(pos_x, pos_y, start, end)
+        emoji_filter = ';'.join([filter_str, '[{}][{}]{}'.format(comp_name, emoji, overlay)])
 
         if idx < (len(emoji_keys) - 1):
-            emoji_str += '[{}];'.format(new_comp)
+            emoji_filter += '[{}];'.format(new_comp)
             comp_name = new_comp
 
-        emoji_filters.append(emoji_str)
+        emoji_filters.append(emoji_filter)
 
     return emoji_filters
 
@@ -129,8 +118,7 @@ def create_inputs(input_file, emoji_filters=[]):
     inputs = [(input_file, None)]
     # add an actual emoji file input for every filter created
     for _ in emoji_filters:
-        emoji_input = get_random_emoji()
-        inputs.append((emoji_input, None))
+        inputs.append((get_random_emoji(), None))
 
     return OrderedDict(inputs)
 
@@ -159,7 +147,7 @@ def add_random_emojis(input_file):
         return tmp_output
     except Exception as e:
         line_break(3)
-        sys.exit('Failed to add emojis.\n{}'.format(e))
+        print('Failed to add emojis.\n{}'.format(e))
 
 
 def main(input_file, output_file):
@@ -180,6 +168,7 @@ def main(input_file, output_file):
         print('Failed to deep fry video.\n{}'.format(e))
 
     rmtree(TMP_FOLDER)
+
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
