@@ -61,11 +61,16 @@ def create_filter_args():
     saturation = make_random_value([2, 3])
     contrast = make_random_value([1.5, 2])
     noise = make_random_value([30, 60])
+    gamma_r = make_random_value([1, 3])
+    gamma_g = make_random_value([1, 3])
+    gamma_b = make_random_value([1, 3])
 
     eq_str = 'eq=saturation={}:contrast={}'.format(saturation, contrast)
+    eq_str += ':gamma_r={}:gamma_g={}:gamma_b={}'.format(gamma_r, gamma_g, gamma_b)
     noise_str = 'noise=alls={}:allf=t'.format(noise)
+    sharpness_str = 'unsharp=5:5:1.25:5:5:1'
 
-    return ['-vf', ','.join([eq_str, noise_str])]
+    return ['-vf', ','.join([eq_str, noise_str, sharpness_str])]
 
 
 def get_random_emoji():
@@ -209,16 +214,20 @@ def deep_fry_video(input_file):
     inputs = create_inputs(emojified_video)
 
     output_args = create_base_args() + create_filter_args()
-    output = '{}/deep_fried.mp4'.format(TMP_FOLDER)
-    outputs = create_outputs(output, output_args)
 
-    ff = ffmpy.FFmpeg(inputs=inputs, outputs=outputs)
-    try:
-        ff.run()
-        return output
-    except Exception as e:
-        line_break(3)
-        print('Failed to deep fry video.\n{}'.format(e))
+    for idx in xrange(0, 3):
+        output = '{}/deep_fried_{}.mp4'.format(TMP_FOLDER, idx)
+        outputs = create_outputs(output, output_args)
+
+        ff = ffmpy.FFmpeg(inputs=inputs, outputs=outputs)
+        try:
+            ff.run()
+            inputs = create_inputs(output)
+        except Exception as e:
+            line_break(3)
+            print('Failed to deep fry video.\n{}'.format(e))
+
+    return output
 
 
 def main(input_file, output_file):
