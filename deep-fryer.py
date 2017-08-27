@@ -19,8 +19,38 @@ def create_base_args():
     ] + create_audio_args()
 
 
+def increase_audio(input_audio, amt):
+    output_args = ['-y', '-af', 'volume=3, bass=g=5, treble=g=-10']
+    audio_file = None
+    for idx in xrange(0, amt):
+        input_file = audio_file or input_audio
+        output = '{}/tmp_audio_{}.wav'.format(TMP_FOLDER, idx)
+        ff = ffmpy.FFmpeg(inputs={input_file: None}, outputs={output: output_args})
+        try:
+            ff.run()
+            audio_file = output
+        except Exception as e:
+            line_break(3)
+            print('Failed to increase audio.\n{}'.format(e))
+
+    return audio_file
+
+
+def extract_audio(input_file):
+    output_args = ['-y', '-vn', '-acodec', 'copy']
+    output = '{}/input_audio.aac'.format(TMP_FOLDER)
+    ff = ffmpy.FFmpeg(inputs={input_file: None}, outputs={output: output_args})
+    try:
+        ff.run()
+    except Exception as e:
+        line_break(3)
+        print('Failed to increase audio.\n{}'.format(e))
+
+    return output
+
+
 def create_audio_args():
-    return ['-af', 'volume=10dB']
+    return ['-af', 'bass=g=8, treble=g=-2, volume=10dB']
 
 
 def create_filter_args():
@@ -138,7 +168,8 @@ def add_random_emojis(input_file):
     emoji_filters = create_emoji_filters(input_file)
     inputs = create_inputs(input_file, emoji_filters)
 
-    output_args = create_base_args()
+    output_args = ['-an'] + create_base_args()
+
     output_args += ['-filter_complex', ''.join(emoji_filters)]
 
     tmp_output = '{}/emojied_video.mp4'.format(TMP_FOLDER)
@@ -153,23 +184,50 @@ def add_random_emojis(input_file):
         print('Failed to add emojis.\n{}'.format(e))
 
 
-def main(input_file, output_file):
-    emojified_video = add_random_emojis(input_file)
-    inputs = create_inputs(emojified_video)
-
-    output_args = create_base_args() + create_filter_args()
-    outputs = create_outputs(output_file, output_args)
-
+def create_final_video(fried_video, boosted_audio, output_file):
+    inputs = OrderedDict([
+        (fried_video, None),
+        (boosted_audio, None),
+    ])
+    outputs = OrderedDict([
+        (output_file, ['-y', '-vcodec', 'libx264']),
+    ])
     ff = ffmpy.FFmpeg(inputs=inputs, outputs=outputs)
     try:
         ff.run()
         line_break(3)
         print('Succesfully deep fried video at {}!'.format(output_file))
         line_break(3)
+        return output_file
+    except Exception as e:
+        line_break(3)
+        print('Failed to create final video.\n{}'.format(e))
+
+
+def deep_fry_video(input_file):
+    emojified_video = add_random_emojis(input_file)
+    inputs = create_inputs(emojified_video)
+
+    output_args = create_base_args() + create_filter_args()
+    output = '{}/deep_fried.mp4'.format(TMP_FOLDER)
+    outputs = create_outputs(output, output_args)
+
+    ff = ffmpy.FFmpeg(inputs=inputs, outputs=outputs)
+    try:
+        ff.run()
+        return output
     except Exception as e:
         line_break(3)
         print('Failed to deep fry video.\n{}'.format(e))
 
+
+def main(input_file, output_file):
+    extracted_audio = extract_audio(input_file)
+    boosted_audio = increase_audio(extracted_audio, 10)
+
+    fried_video = deep_fry_video(input_file)
+
+    create_final_video(fried_video, boosted_audio, output_file)
     rmtree(TMP_FOLDER)
 
 
