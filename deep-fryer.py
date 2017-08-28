@@ -209,13 +209,13 @@ def create_final_video(fried_video, boosted_audio, output_file):
         print('Failed to create final video.\n{}'.format(e))
 
 
-def deep_fry_video(input_file):
+def deep_fry_video(input_file, video_dip):
     emojified_video = add_random_emojis(input_file)
     inputs = create_inputs(emojified_video)
 
     output_args = create_base_args() + create_filter_args()
 
-    for idx in xrange(0, 3):
+    for idx in xrange(0, video_dip):
         output = '{}/deep_fried_{}.mp4'.format(TMP_FOLDER, idx)
         outputs = create_outputs(output, output_args)
 
@@ -230,11 +230,11 @@ def deep_fry_video(input_file):
     return output
 
 
-def main(input_file, output_file):
+def main(input_file, output_file, video_dip, audio_dip):
     extracted_audio = extract_audio(input_file)
-    boosted_audio = increase_audio(extracted_audio, 10)
+    boosted_audio = increase_audio(extracted_audio, audio_dip)
 
-    fried_video = deep_fry_video(input_file)
+    fried_video = deep_fry_video(input_file, video_dip)
 
     create_final_video(fried_video, boosted_audio, output_file)
     rmtree(TMP_FOLDER)
@@ -243,10 +243,12 @@ def main(input_file, output_file):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('-i', '--input_file', help='input file')
-    ap.add_argument('-o', '--output_file', help='output file', default=None)
+    ap.add_argument('-o', '--output_file', help='output file')
+    ap.add_argument('-vd', '--video_dip', help='amount of times to run video through filter', default=3, type=int)
+    ap.add_argument('-ad', '--audio_dip', help='amount of times to run audio through filter', default=10, type=int)
     args = ap.parse_args()
 
     assert args.input_file is not None, 'No input file provided...'
     assert args.output_file is not None, 'No output file provided...'
 
-    main(args.input_file, args.output_file)
+    main(args.input_file, args.output_file, args.video_dip, args.audio_dip)
