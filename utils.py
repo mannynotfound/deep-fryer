@@ -2,7 +2,7 @@ import os
 import re
 import tempfile
 import random
-
+import time
 
 def get_dimensions(input_file):
     """
@@ -44,8 +44,7 @@ def line_break(num):
 
 def get_video_details(input_file):
     """
-    Creates temp file with name that is then closed so that ffmpeg can use
-    it independently. Later reopens it.
+    Returns metadata from given file uusing ffmpeg and a temp file.
     """
     tmpf = tempfile.NamedTemporaryFile(delete=False)
     tempname = tmpf.name
